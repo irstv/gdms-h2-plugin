@@ -10,10 +10,12 @@ public class H2DriverPlugIn implements GdmsPlugIn {
         @Override
         public void load(DataSourceFactory dsf) {
                 this.dsf = dsf;
+                dsf.getSourceManager().getDriverManager().registerDriver(H2spatialDriver.class);
         }
 
         @Override
         public void unload() {
+                dsf.getSourceManager().getDriverManager().unregisterDriver(H2spatialDriver.DRIVER_NAME);
         }
 
         @Override
