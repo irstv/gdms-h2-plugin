@@ -1,7 +1,7 @@
-DROP TABLE IF EXISTS "gis_schema"."schema_test";
-DROP SCHEMA IF EXISTS "gis_schema";
-CREATE SCHEMA "gis_schema";
-CREATE TABLE "gis_schema"."schema_test" (
+DROP TABLE IF EXISTS gis_schema.schema_test;
+DROP SCHEMA IF EXISTS gis_schema;
+CREATE SCHEMA gis_schema;
+CREATE TABLE gis_schema.schema_test (
 "f1" integer,
 "f2" boolean,
 "f5" tinyint,
