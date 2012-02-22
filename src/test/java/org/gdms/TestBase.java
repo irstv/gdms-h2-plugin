@@ -40,48 +40,34 @@ import com.vividsolutions.jts.geom.Geometry;
 import com.vividsolutions.jts.io.WKTReader;
 import com.vividsolutions.jts.io.WKTWriter;
 import java.io.File;
-import java.io.IOException;
 import java.sql.DriverManager;
 import java.util.ArrayList;
 import java.util.List;
-import org.apache.log4j.Appender;
-import org.apache.log4j.BasicConfigurator;
-import org.apache.log4j.Level;
-import org.apache.log4j.Logger;
-import org.apache.log4j.PatternLayout;
-import org.gdms.data.DataSource;
-import org.gdms.data.DataSourceCreation;
-import org.gdms.data.DataSourceCreationException;
-import org.gdms.data.DataSourceFactory;
-import org.gdms.data.NoSuchTableException;
+import org.apache.log4j.*;
+import org.gdms.data.*;
 import org.gdms.data.db.DBSource;
 import org.gdms.data.file.FileSourceCreation;
 import org.gdms.data.schema.DefaultMetadata;
 import org.gdms.data.schema.Metadata;
-import org.gdms.data.types.Constraint;
-import org.gdms.data.types.Dimension3DConstraint;
-import org.gdms.data.types.GeometryDimensionConstraint;
+import org.gdms.data.types.*;
 import org.gdms.data.values.Value;
-import org.gdms.driver.DriverException;
-import org.gdms.data.types.IncompatibleTypesException;
-import org.gdms.data.types.Type;
 import org.gdms.data.values.ValueFactory;
 import org.gdms.driver.Driver;
+import org.gdms.driver.DriverException;
 import org.gdms.driver.csv.CSVDriver;
 import org.gdms.driver.dbf.DBFDriver;
+import org.gdms.driver.h2.H2spatialDriver;
 import org.gdms.driver.hsqldb.HSQLDBDriver;
 import org.gdms.driver.postgresql.PostgreSQLDriver;
 import org.gdms.driver.shapefile.ShapefileDriver;
 import org.gdms.source.SourceManager;
-import org.gdms.spatial.SeveralSpatialFieldsDriver;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.BeforeClass;
-import org.orbisgis.utils.FileUtils;
 
 public abstract class TestBase extends SourceTest<Value, Geometry> {
 
-        public static DataSourceFactory dsf = new DataSourceFactory(backupDir.getAbsolutePath());
+        public static DataSourceFactory dsf;
         private static boolean loaded = false;
         private static String fname = "name";
         private static String frowCount = "rowCount";
@@ -99,10 +85,9 @@ public abstract class TestBase extends SourceTest<Value, Geometry> {
         private static String fspatialField = "spatialField";
         private static String fnewGeometry = "newGeometry";
         private static String fwrite = "write";
-        public static boolean postGisAvailable;
         public static boolean h2Available;
-        public static boolean hsqlDbAvailable;
         private static final Logger LOG = Logger.getLogger(TestBase.class);
+        private static final File pluginData = new File("src/main/resources/");
         
         static {
                 BasicConfigurator.configure();
@@ -115,29 +100,19 @@ public abstract class TestBase extends SourceTest<Value, Geometry> {
         public static void setUpClass() {
                 if (!loaded) {
                         try {
+                                backupDir = new File("target/backupdir");
+                                backupDir.mkdirs();
+                                dsf = new DataSourceFactory(backupDir.getAbsolutePath());
+                                org.gdms.driver.driverManager.DriverManager dm = dsf.getSourceManager().getDriverManager();
+                                dm.registerDriver(H2spatialDriver.class);
                                 LOG.info("Initializing test resources.");
                                 DriverManager.setLoginTimeout(1);
 
-                                toTest.add(new FileTestSource("hedgerow", internalData
-                                        + "hedgerow.shp"));
-                                toTest.add(new FileTestSource("landcover2000dbf", internalData
-                                        + "landcover2000.dbf"));
-                                toTest.add(new FileTestSource("tif440606", internalData
-                                        + "tif440606.gdms"));
-
-                                toTest.add(new FileTestSource(SHPTABLE, internalData
-                                        + "landcover2000.shp"));
-                                toTest.add(new ObjectTestSource("memory_spatial_object",
-                                        new SeveralSpatialFieldsDriver()));
-                                final DBTestSource dBTestH2 = new DBTestSource("testh2", "org.h2.Driver", internalData
-                                        + "testh2.sql", new DBSource(null, 0, internalData
-                                        + "backup/testh2", "sa", "", "POINT", "jdbc:h2"));
+                                final DBTestSource dBTestH2 = new DBTestSource("testh2", "org.h2.Driver", pluginData
+                                        + File.separator + "testh2.sql", new DBSource(null, 0, backupDir.toString(),
+                                         "sa", "", "POINT", "jdbc:h2"));
                                 h2Available = false;
-                                try{
-                                        h2Available = dBTestH2.isConnected();
-                                } catch (ClassNotFoundException cnf){
-
-                                }
+                                h2Available = dBTestH2.isConnected();
                                 if (h2Available) {
                                         LOG.info("H2 database available.");
                                         toTest.add(dBTestH2);
@@ -145,46 +120,6 @@ public abstract class TestBase extends SourceTest<Value, Geometry> {
                                         LOG.warn("H2 database not available!!");
                                         LOG.warn("Skipping H2 DB tests.");
                                 }
-                                FileUtils.copyFileToDirectory(new File(internalData + "testhsqldb.sql"), backupDir);
-                                final DBTestSource dBTestHsqlDb = new DBTestSource("testhsqldb", "org.hsqldb.jdbcDriver",
-                                        backupDir+ File.separator + "testhsqldb.sql", new DBSource(null, 0,
-                                        backupDir + "testhsqldb", "sa", "",
-                                        "gisapps", "jdbc:hsqldb:file"));
-                                hsqlDbAvailable = dBTestHsqlDb.isConnected();
-
-                                if (hsqlDbAvailable) {
-                                        LOG.info("HsqlDb database available.");
-                                        toTest.add(dBTestHsqlDb);
-                                } else {
-                                        LOG.warn("HsqlDb database not available!!");
-                                        LOG.warn("Skipping HsqlDb DB tests.");
-                                }
-
-                                toTest.add(new FileTestSource("testcsv", internalData
-                                        + "test.csv"));
-                                toTest.add(new FileTestSource("repeatedRows", internalData
-                                        + "repeatedRows.csv"));
-
-                                FileUtils.copyFileToDirectory(new File(internalData + "hedgerow.sql"), backupDir);
-                                FileUtils.copyFileToDirectory(new File(internalData + "testpostgres.sql"), backupDir);
-                                final DBTestSource dBTestPostGIS = new DBTestSource("pghedgerow", "org.postgresql.Driver",
-                                        backupDir+File.separator + "hedgerow.sql", new DBSource("127.0.0.1",
-                                        -1, "gdms", "postgres", "postgres", "hedgerow",
-                                        "jdbc:postgresql"));
-                                postGisAvailable = dBTestPostGIS.isConnected();
-
-                                if (postGisAvailable) {
-                                        LOG.info("PostGIS database available.");
-                                        toTest.add(dBTestPostGIS);
-                                        toTest.add(new DBTestSource("postgres", "org.postgresql.Driver",
-                                                backupDir+File.separator + "testpostgres.sql", new DBSource(
-                                                "127.0.0.1", -1, "gdms", "postgres", "postgres",
-                                                "gisapps", "jdbc:postgresql")));
-                                } else {
-                                        LOG.warn("PostGIS database not available!!");
-                                        LOG.warn("Skipping PostGIS DB tests.");
-                                }
-
                                 if (!testDataInfo.exists()) {
                                         createDB();
                                 }
@@ -230,6 +165,8 @@ public abstract class TestBase extends SourceTest<Value, Geometry> {
         @Before
         public void setUp() throws Exception {
                 dsf = new DataSourceFactory();
+                org.gdms.driver.driverManager.DriverManager dm = dsf.getSourceManager().getDriverManager();
+                dm.registerDriver(H2spatialDriver.class);
                 dsf.setTempDir(backupDir.getAbsolutePath());
                 dsf.setResultDir(backupDir);
                 dsf.getSourceManager().removeAll();
@@ -243,21 +180,9 @@ public abstract class TestBase extends SourceTest<Value, Geometry> {
         protected static void createDB() throws Exception {
                 LOG.info("Creating the list of available sources.");
                 ArrayList<TestSourceData> sources = new ArrayList<TestSourceData>();
-                sources.add(new TestSourceData("hedgerow", null, false));
-                sources.add(new TestSourceData("landcover2000dbf", null, false));
-                sources.add(new TestSourceData("memory_spatial_object", null, false));
                 sources.add(new TestSourceData(SHPTABLE, null, false));
                 if (h2Available) {
                         sources.add(new TestSourceData("testh2", null, false));
-                }
-                if (hsqlDbAvailable) {
-                        sources.add(new TestSourceData("testhsqldb", "version", false));
-                }
-                sources.add(new TestSourceData("testcsv", null, false));
-                sources.add(new TestSourceData("repeatedRows", null, true));
-                if (postGisAvailable) {
-                        sources.add(new TestSourceData("postgres", null, false));
-                        sources.add(new TestSourceData("pghedgerow", null, false));
                 }
                 createTestDataInfo(sources);
                 LOG.info("Created the list of available sources.");
