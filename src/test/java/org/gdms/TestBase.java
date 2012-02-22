@@ -87,7 +87,7 @@ public abstract class TestBase extends SourceTest<Value, Geometry> {
         private static String fwrite = "write";
         public static boolean h2Available;
         private static final Logger LOG = Logger.getLogger(TestBase.class);
-        private static final File pluginData = new File("src/main/resources/");
+        protected static final File pluginData = new File("src/test/resources/");
         
         static {
                 BasicConfigurator.configure();

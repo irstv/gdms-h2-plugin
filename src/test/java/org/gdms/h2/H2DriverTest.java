@@ -64,7 +64,7 @@ public class H2DriverTest extends TestBase {
         private DBSource h2DBSource = new DBSource(null, 0, TestBase.backupDir
                 + File.separator + "h2AllTypes", "sa", null, "alltypes", "jdbc:h2");
         private DBTestSource h2Src = new DBTestSource("source", "org.h2.Driver",
-                TestBase.internalData + "h2AllTypes.sql", h2DBSource);
+                pluginData+ File.separator + "h2AllTypes.sql", h2DBSource);
         private DBSource schemaH2DBSource = new DBSource(null, 0, TestBase.backupDir
                 + File.separator + "h2SchemaTest", "sa", null, "gis_schema", "schema_test", "jdbc:h2");
         private DBTestSource schemaH2Src = new DBTestSource("source", "org.h2.Driver",
