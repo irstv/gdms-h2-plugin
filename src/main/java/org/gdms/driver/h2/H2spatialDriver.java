@@ -37,6 +37,13 @@ import java.sql.Types;
 import java.util.List;
 import java.util.Properties;
 
+import com.vividsolutions.jts.geom.Geometry;
+import com.vividsolutions.jts.io.ParseException;
+import com.vividsolutions.jts.io.WKBReader;
+import com.vividsolutions.jts.io.WKTWriter;
+import org.apache.log4j.Logger;
+import org.h2spatial.SQLCodegenerator;
+
 import org.gdms.data.schema.Metadata;
 import org.gdms.data.types.Constraint;
 import org.gdms.data.types.Type;
@@ -58,19 +65,12 @@ import org.gdms.driver.postgresql.PGIntRule;
 import org.gdms.driver.postgresql.PGLongRule;
 import org.gdms.driver.postgresql.PGShortRule;
 import org.gdms.source.SourceManager;
-import org.h2spatial.SQLCodegenerator;
-
-import com.vividsolutions.jts.geom.Geometry;
-import com.vividsolutions.jts.io.ParseException;
-import com.vividsolutions.jts.io.WKBReader;
-import com.vividsolutions.jts.io.WKTWriter;
-import org.apache.log4j.Logger;
 
 /**
  * DOCUMENT ME!
- * 
+ *
  * @author Erwan Bocher
- * 
+ *
  */
 public final class H2spatialDriver extends DefaultDBDriver {
 
@@ -88,13 +88,15 @@ public final class H2spatialDriver extends DefaultDBDriver {
         }
 
         @Override
-        public Connection getConnection(String host, int port, boolean ssl, String dbName,
-                String user, String password) throws SQLException {
-                LOG.trace("Getting connection");
+        public String getConnectionString(String host, int port, boolean ssl, String dbName,
+                String user, String password) {
+
                 if (driverException != null) {
                         throw new UnsupportedOperationException(driverException);
                 }
+
                 String connectionString;
+
                 if ((null == host) || (0 == host.length()) || (dbName.charAt(0) == '/')) {
                         connectionString = "jdbc:h2:file:" + dbName;
                 } else if (ssl) {
@@ -104,11 +106,20 @@ public final class H2spatialDriver extends DefaultDBDriver {
                         connectionString = "jdbc:h2:tcp://" + host + ":" + port + "/"
                                 + dbName;
                 }
+                
+                return connectionString + "?username=" + user + "&password=" + password;
+        }
+
+        @Override
+        public Connection getConnection(String connectionString) throws SQLException {
+                if (driverException != null) {
+                        throw new UnsupportedOperationException(driverException);
+                }
+                
                 final Properties p = new Properties();
                 p.put("shutdown", "true");
-
-                final Connection con = DriverManager.getConnection(connectionString,
-                        user, password);
+                
+                final Connection con = DriverManager.getConnection(connectionString);
                 Statement stat = null;
                 try {
                         stat = con.createStatement();
@@ -116,6 +127,7 @@ public final class H2spatialDriver extends DefaultDBDriver {
                 } finally {
                         stat.close();
                 }
+                
                 return con;
         }
 
@@ -148,7 +160,7 @@ public final class H2spatialDriver extends DefaultDBDriver {
                 final int typeCode = getResultsetMetadata().getColumnType(jdbcFieldId);
                 String fieldName = getResultsetMetadata().getColumnName(jdbcFieldId);
                 return (fieldName.equalsIgnoreCase("the_geom") && (typeCode == Types.BLOB)) ? true
-                       : false;
+                        : false;
         }
 
         @Override
@@ -195,8 +207,8 @@ public final class H2spatialDriver extends DefaultDBDriver {
                 return "ALTER TABLE \"" + getTableAndSchemaName() + "\" ALTER COLUMN \"" + oldName
                         + "\" RENAME TO \"" + newName + "\"";
         }
-        
-       @Override
+
+        @Override
         public int getSupportedType() {
                 return SourceManager.DB | SourceManager.VECTORIAL;
         }
